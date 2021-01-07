@@ -13,21 +13,8 @@ def main():
 	if checkForUpdate(curr_sha, json_data):
 		updateServer(json_data)
 		print ("DONE")
-
-def getJsonData():
-	print("Getting JSON data...")
-	release_data = requests.get(MINECRAFT_URL).json()
 	
-	print ("Latest release: " + release_data['latest']['release'])
-	
-	for version in release_data['versions']:
-		if version['id'] == '1.16.4':
-			json_data = requests.get(version['url']).json()
-			break
-	
-	print ("Obtained JSON data")
-	return json_data
-
+# Opens Minecraft Server jar and reads the hash code of the current SHA value	
 def getCurrentSha():
 	print("Getting Sha of server...")
 	server_jar = open("server.jar", 'rb')
@@ -36,11 +23,29 @@ def getCurrentSha():
 	print("Server Sha found")
 	return sha.hexdigest()
 
+# Obtains the latest release JSON data from the Mojang server
+def getJsonData(curr_sha):
+	print("Getting JSON data...")
+	release_data = requests.get(MINECRAFT_URL).json()
+	
+	latest_release = release_data['latest']['release']
+	
+	print ("Latest release: " + latest_release)
+	
+	for version in release_data['versions']:
+		if version['id'] == latest_release:
+			json_data = requests.get(version['url']).json()
+			break
+	
+	print ("Obtained JSON data")
+	return json_data
+
+# Compares the current SHA value on the server to the latest release from Mojang
 def checkForUpdate(curr_sha, json_data):
 	print ("Checking for updates...")
 	online_sha = json_data['downloads']['server']['sha1']
 	
-	if online_sha == '':
+	if online_sha == curr_sha:
 		print ("Update Required!")
 		return True
 	else:
@@ -68,6 +73,7 @@ def updateServer(json_data):
 	
 	print ("Server updated")
 
+# Determine if Terminal Multiplexer has a running instance
 def checkTmuxStatus():
 	print ("Checking Tmux status...")
 	os.system('touch temp.txt')
@@ -85,6 +91,7 @@ def checkTmuxStatus():
 	os.system('rm temp.txt')
 	return False	
 
+# Sends the shutdown command to the Minecraft server through Tmux
 def shutdownServer():
 	print ("Shutting down server in " + SHUTDOWN_DELAY_TIME + " seconds...")
 	os.system('tmux send-keys -t Minecraft.0 "/say SYSTEM SHUTDOWN IN 1 MINUTE" ENTER')
@@ -92,11 +99,13 @@ def shutdownServer():
 	os.system('tmux send-keys -t Minecraft.0 "/stop" ENTER')
 	print ("Server shutdown")
 
+# Open new Tmux session for the Minecraft server to run in the backgrounds
 def createTmuxSession():
 	print("Creating new Tmux session...")
 	os.system('tmux new -d -s Minecraft')
 	print ("Tmux session created")
 
+# Tarballs the 'world' folder as a backup
 def backupWorld(release):
 	print ("Backing up world...")
 	if os.path.exists('world_backups') == False:
@@ -106,6 +115,7 @@ def backupWorld(release):
 	os.system(tar_world_command)
 	print ("Backup created")
 
+# Store the old server for a backup and replace it with the newest release
 def replaceServerJar(release):
 	print ("replacing old server.jar...")
 	if os.path.exists("jar_backups") == False:
@@ -117,6 +127,7 @@ def replaceServerJar(release):
 	os.system('mv temp.jar server.jar')
 	print ("Old server.jar replaced")
 
+# Once Tmux is running, send start command for the server
 def restartServer():
 	print ("Restarting server...")
 	os.system('tmux send-keys -t Minecraft.0 "java -Xmx1024M -Xms1024M -jar server.jar nogui" ENTER')
